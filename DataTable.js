@@ -21,9 +21,9 @@ class DataTable {
     let that = this;
     loader.load(
       [
-        "/components/DataTable/Pagination.js",
-        "/components/DataTable/gridManager.js",
-        "/components/DataTable/datatable.css",
+        "/components/dataTable/Pagination.js",
+        "/components/dataTable/gridManager.js",
+        "/components/dataTable/datatable.css",
         'URLUtils'
       ],
       function () {
