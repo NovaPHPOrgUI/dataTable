@@ -12,7 +12,7 @@ class DataTable {
     this.table = document.createElement("table");
     this.table.id = this.tableName;
     this.element.appendChild(this.table);
-    this.page = document.createElement("page-btn");
+    this.page = document.createElement("mdui-page-btn");
     this.page.id = "page" + Math.random().toString(36).substring(2);
     this.element.appendChild(this.page);
   }
@@ -148,7 +148,7 @@ class DataTable {
       },
       error: (xhr) => {
         $.toaster.error("请求失败");
-        console.error(e);
+        console.error(xhr);
       },
       complete: callback,
     });
