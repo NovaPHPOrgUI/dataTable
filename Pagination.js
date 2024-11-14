@@ -102,7 +102,7 @@ const that = this;
       {
         pageIndex: 1,
         pageSize: 10,
-        pageSizes: [10, 20, 50, 100],
+        pageSizes: [5, 10, 20, 50, 100],
         pageCount: 5,
         total: 0,
         layout: "first, prev, pager, next, last",

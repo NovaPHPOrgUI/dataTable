@@ -19,7 +19,7 @@ class DataTable {
 
   load(config) {
     let that = this;
-    loader.load(
+    $.loader(
       [
         "/components/dataTable/Pagination.js",
         "/components/dataTable/gridManager.js",
@@ -59,12 +59,13 @@ class DataTable {
             empty_msg: "空空如也",
             params: {},
             headers: {},
-            pageSizes: [10, 20, 50, 100],
+            pageSizes: [5,10, 20, 50, 100],
             page: true,
           },
           config,
         );
-
+        that.currentPage = parseInt($.url.getParam("page") || "1");
+        that.pageSize = parseInt($.url.getParam("size") || that.config.pageSizes[0]);
         if (that.config.mobile) {
           that.element.classList.add("table-mobile");
         }
@@ -74,10 +75,6 @@ class DataTable {
         }
 
         that.data = [];
-
-        that.currentPage = $.url.getParam("page") || 1;
-        that.pageSize = $.url.getParam("size") || that.config.pageSizes[0];
-
         that.totalRecords = 0;
         that.sortColumn = "";
         that.sortOrder = "";
@@ -215,10 +212,10 @@ class DataTable {
   renderPage() {
     let that = this;
     this.page.init({
-      pageIndex: 1,
+      pageIndex:  that.currentPage,
       pageSizes: that.config.pageSizes,
       pageSize: that.pageSize,
-      currentPage: that.currentPage,
+    //  currentPage: that.currentPage,
       total: that.totalRecords,
       //layout: "prev, pager, next, count, limits",
       onPageChange: function (index, pageSize) {
