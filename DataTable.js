@@ -30,6 +30,7 @@ class DataTable {
         that.config = Object.assign(
           {
             uri: "",
+            break: false,
             columns: [
               {
                 field: "id",
@@ -155,6 +156,7 @@ class DataTable {
     let columnData = [];
     let leftFixedData = [];
     let rightFixedData = [];
+    let that = this;
     for (let col of this.config.columns) {
       let width = col.width || null;
       if (width === "auto") {
@@ -182,9 +184,10 @@ class DataTable {
           if (col.formatter) {
             result = col.formatter(cell, row, index);
           }
+          let breakLine = that.config.break ? "break-line" : "";
           if (result === cell || (typeof result == "string" && result.indexOf("<") === -1)) {
             result = `<mdui-tooltip>
-  <span>${result}</span>
+  <span class="${breakLine}">${result}</span>
    <div slot="content">
    ${result}
   </div>
@@ -192,7 +195,7 @@ class DataTable {
           }
 
           let text = col.name;
-          result = `<span class="table-mobile-name">${text}</span> <span class="table-col">${result}</span>`;
+          result = `<span class="table-mobile-name">${text}</span> <span class="table-col ${breakLine}">${result}</span>`;
 
           return result;
         },

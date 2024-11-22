@@ -1761,3 +1761,7 @@ td[gm-order] {
     display: block;
     width: 12px;
 }
+
+.break-line {
+    white-space: break-spaces;
+}
