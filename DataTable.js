@@ -184,18 +184,21 @@ class DataTable {
           if (col.formatter) {
             result = col.formatter(cell, row, index);
           }
-          let breakLine = that.config.break ? "break-line" : "";
           if (result === cell || (typeof result == "string" && result.indexOf("<") === -1)) {
-            result = `<mdui-tooltip>
-  <span class="${breakLine}">${result}</span>
+            if (that.config.break) {
+              result = `<span class="${that.config.break ? 'break-line' : ''}">${result}</span>`;
+            } else {
+              result = `<mdui-tooltip>
+  <span>${result}</span>
    <div slot="content">
    ${result}
   </div>
 </mdui-tooltip>`;
+            }
           }
 
           let text = col.name;
-          result = `<span class="table-mobile-name">${text}</span> <span class="table-col ${breakLine}">${result}</span>`;
+          result = `<span class="table-mobile-name">${text}</span> <span class="table-col">${result}</span>`;
 
           return result;
         },
