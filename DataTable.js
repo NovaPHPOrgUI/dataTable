@@ -93,6 +93,8 @@ class DataTable {
 
   loadData(callback) {
     this.selectData = [];
+    GridManager.setCheckedData(this.table, this.selectData);
+    if (this.config.events.onSelect) this.config.events.onSelect(this.selectData);
     let that = this;
     const loading = new Loading(this.element);
     loading.show();
