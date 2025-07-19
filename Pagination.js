@@ -1,3 +1,11 @@
+/**
+ * 分页组件
+ * 提供功能完整的分页控件，支持首页、上一页、下一页、末页、页码显示等功能
+ * @file Pagination.js
+ * @author License Auto System
+ * @version 1.0.0
+ */
+
 /*
  * Copyright (c) 2025. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
  * Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
@@ -8,7 +16,15 @@
 
 "use strict";
 
+/**
+ * 分页组件类
+ * 继承自HTMLElement，提供自定义分页元素
+ */
 class Pagination extends HTMLElement {
+  /**
+   * 构造函数
+   * 初始化Shadow DOM和样式
+   */
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
@@ -99,12 +115,29 @@ class Pagination extends HTMLElement {
 
 const that = this;
 
+    /**
+     * 监听翻译设置事件
+     */
     $.emitter.on('translate:set', () => {
         TranslateUtils.autoTranslate(this.shadowRoot);
     });
   }
 
+  /**
+   * 初始化分页组件
+   * @param {Object} options - 分页配置选项
+   * @param {number} options.pageIndex - 当前页码
+   * @param {number} options.pageSize - 每页显示条数
+   * @param {Array<number>} options.pageSizes - 每页条数选项
+   * @param {number} options.pageCount - 显示的页码数量
+   * @param {number} options.total - 总记录数
+   * @param {string} options.layout - 布局配置
+   * @param {boolean} options.showCount - 是否显示总条数
+   * @param {boolean} options.showLimits - 是否显示每页条数选择器
+   * @param {Function} options.onPageChange - 页码改变回调函数
+   */
   init(options) {
+    /** @type {Array<string>} 支持的布局组件 */
     this._layout = ["first", "prev", "pager", "next", "last"];
     this.options = Object.assign(
       {
@@ -121,11 +154,16 @@ const that = this;
       options,
     );
 
+    /** @type {HTMLElement} 分页容器元素 */
     this.element = this.shadowRoot.getElementById("pagination");
+    /** @type {number} 总页数 */
     this.pageNum = 0;
     this.render();
   }
 
+  /**
+   * 渲染分页组件
+   */
   render() {
     this.pageNum = Math.ceil(this.options.total / this.options.pageSize);
 
@@ -166,6 +204,10 @@ const that = this;
     }
   }
 
+  /**
+   * 创建首页按钮
+   * @returns {HTMLElement} 首页按钮元素
+   */
   first() {
     const disabled = this.options.pageIndex <= 1 ? ["disabled"] : [];
     const element = this.createElement("span", ["page-item", ...disabled]);
@@ -178,6 +220,10 @@ const that = this;
     return element;
   }
 
+  /**
+   * 创建上一页按钮
+   * @returns {HTMLElement} 上一页按钮元素
+   */
   prev() {
     const disabled = this.options.pageIndex <= 1 ? ["disabled"] : [];
     const element = this.createElement("span", ["page-item", ...disabled]);
@@ -190,6 +236,10 @@ const that = this;
     return element;
   }
 
+  /**
+   * 创建页码按钮
+   * @returns {Array<HTMLElement>} 页码按钮元素数组
+   */
   pager() {
     const { min, max } = this.getBetween();
     const arrs = this.generateArray(min, max);
@@ -216,6 +266,10 @@ const that = this;
     return ret;
   }
 
+  /**
+   * 创建下一页按钮
+   * @returns {HTMLElement} 下一页按钮元素
+   */
   next() {
     const disabled = this.options.pageIndex >= this.pageNum ? ["disabled"] : [];
     const element = this.createElement("span", ["page-item", ...disabled]);
@@ -228,6 +282,10 @@ const that = this;
     return element;
   }
 
+  /**
+   * 创建末页按钮
+   * @returns {HTMLElement} 末页按钮元素
+   */
   last() {
     const disabled = this.options.pageIndex >= this.pageNum ? ["disabled"] : [];
     const element = this.createElement("span", ["page-item", ...disabled]);
@@ -240,12 +298,20 @@ const that = this;
     return element;
   }
 
+  /**
+   * 创建总条数显示元素
+   * @returns {HTMLElement} 总条数显示元素
+   */
   count() {
     const span = this.createElement("span", "page-count");
     span.innerText = `共 ${this.options.total} 条`;
     return span;
   }
 
+  /**
+   * 创建每页条数选择器
+   * @returns {HTMLElement} 每页条数选择器元素
+   */
   limits() {
     const span = this.createElement("mdui-dropdown", "page-limits");
     const button = this.createElement("mdui-button");
@@ -273,6 +339,10 @@ const that = this;
     return span;
   }
 
+  /**
+   * 处理页码改变事件
+   * @param {number} index - 新的页码
+   */
   handleChangePage(index) {
     this.options.pageIndex = index;
     if (typeof this.options.onPageChange === "function") {
@@ -281,6 +351,10 @@ const that = this;
     this.render();
   }
 
+  /**
+   * 计算页码显示范围
+   * @returns {Object} 包含min和max的对象
+   */
   getBetween() {
     const half = Math.floor(this.options.pageCount / 2);
     let min = this.options.pageIndex - half;
@@ -299,6 +373,12 @@ const that = this;
     return { min, max };
   }
 
+  /**
+   * 生成指定范围的数组
+   * @param {number} start - 起始值
+   * @param {number} end - 结束值
+   * @returns {Array<number>} 数字数组
+   */
   generateArray(start, end) {
     const arr = [];
     for (let i = start; i <= end; i++) {
@@ -307,6 +387,12 @@ const that = this;
     return arr;
   }
 
+  /**
+   * 创建DOM元素
+   * @param {string} tag - 标签名
+   * @param {string|Array<string>} classList - CSS类名或类名数组
+   * @returns {HTMLElement} 创建的DOM元素
+   */
   createElement(tag, classList) {
     const el = document.createElement(tag);
     if (Array.isArray(classList)) {
@@ -318,4 +404,7 @@ const that = this;
   }
 }
 
+/**
+ * 注册自定义元素
+ */
 customElements.define("mdui-page-btn", Pagination);

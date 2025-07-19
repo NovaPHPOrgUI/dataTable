@@ -1,3 +1,11 @@
+/**
+ * 数据表格组件
+ * 提供功能丰富的数据表格显示、分页、排序、选择等功能
+ * @file DataTable.js
+ * @author License Auto System
+ * @version 1.0.0
+ */
+
 /*
  * Copyright (c) 2025. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
  * Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
@@ -6,8 +14,17 @@
  * Vestibulum commodo. Ut rhoncus gravida arcu.
  */
 
+/**
+ * 数据表格类
+ * 提供数据表格的完整功能，包括数据加载、渲染、分页、排序等
+ */
 class DataTable {
+  /**
+   * 构造函数
+   * @param {string} id - 表格容器的CSS选择器
+   */
   constructor(id) {
+    /** @type {HTMLElement} 表格容器元素 */
     this.element = document.querySelector(id);
 
     if (!this.element) {
@@ -15,16 +32,37 @@ class DataTable {
       return;
     }
 
+    /** @type {string} 表格唯一标识名 */
     this.tableName = "table" + Math.random().toString(36).substring(2);
 
+    /** @type {HTMLTableElement} 表格元素 */
     this.table = document.createElement("table");
     this.table.id = this.tableName;
     this.element.appendChild(this.table);
+    
+    /** @type {HTMLElement} 分页组件元素 */
     this.page = document.createElement("mdui-page-btn");
     this.page.id = "page" + Math.random().toString(36).substring(2);
     this.element.appendChild(this.page);
   }
 
+  /**
+   * 加载表格配置和数据
+   * @param {Object} config - 表格配置对象
+   * @param {string} config.uri - 数据接口地址
+   * @param {boolean} config.break - 是否启用换行
+   * @param {Array<Object>} config.columns - 列配置数组
+   * @param {boolean} config.mobile - 是否启用移动端适配
+   * @param {boolean} config.selectable - 是否可选择行
+   * @param {string} config.lineHeight - 行高设置
+   * @param {string} config.height - 表格高度
+   * @param {Object} config.events - 事件回调对象
+   * @param {string} config.empty_msg - 空数据提示信息
+   * @param {Object} config.params - 请求参数
+   * @param {Object} config.headers - 请求头
+   * @param {Array<number>} config.pageSizes - 分页大小选项
+   * @param {boolean} config.page - 是否启用分页
+   */
   load(config) {
     let that = this;
     $.loader(
@@ -99,6 +137,10 @@ class DataTable {
     );
   }
 
+  /**
+   * 加载表格数据
+   * @param {Function} callback - 加载完成后的回调函数
+   */
   loadData(callback) {
     this.selectData = [];
     GridManager.setCheckedData(this.table, this.selectData);
@@ -111,6 +153,11 @@ class DataTable {
     });
   }
 
+  /**
+   * 重新加载表格数据
+   * @param {Object} params - 请求参数
+   * @param {boolean} reloadPage - 是否重新渲染分页
+   */
   reload(params = undefined, reloadPage = false) {
     this.config.params = params || this.config.params;
     let that = this;
@@ -126,6 +173,10 @@ class DataTable {
     });
   }
 
+  /**
+   * 获取表格数据
+   * @param {Function} callback - 获取完成后的回调函数
+   */
   fetchData(callback) {
     this.data = [];
     this.totalRecords = 0;
@@ -162,6 +213,10 @@ class DataTable {
     });
   }
 
+  /**
+   * 构建列配置
+   * @returns {Array<Object>} 列配置数组
+   */
   buildColumns() {
     let columnData = [];
     let leftFixedData = [];
@@ -225,6 +280,10 @@ class DataTable {
     }
     return [...leftFixedData, ...columnData, ...rightFixedData];
   }
+  
+  /**
+   * 渲染分页组件
+   */
   renderPage() {
     let that = this;
     this.page.init({
@@ -249,6 +308,9 @@ class DataTable {
     });
   }
 
+  /**
+   * 渲染表格
+   */
   renderTable() {
     let that = this;
     this.table.GM({
@@ -322,13 +384,26 @@ class DataTable {
     }
   }
 
+  /**
+   * 获取选中的行数据
+   * @returns {Array<Object>} 选中的行数据数组
+   */
   getSelectedRows() {
     return this.selectData;
   }
+  
+  /**
+   * 销毁表格实例
+   */
   destroy() {
     GridManager.destroy(this.tableName);
   }
 
+  /**
+   * 获取指定索引的行数据
+   * @param {number} index - 行索引
+   * @returns {Object} 行数据对象
+   */
   getRow(index) {
     return this.data[index];
   }
