@@ -45,23 +45,38 @@ class DataTable {
     this.page.id = "page" + Math.random().toString(36).substring(2);
     this.element.appendChild(this.page);
   }
+  /**
+   * 列配置对象
+   * @typedef {Object} Column
+   * @property {string}  field      字段名
+   * @property {string}  name       表头显示文本
+   * @property {string}  align      对齐方式（left | center | right）
+   * @property {number}  width      列宽
+   * @property {(value:any, row?:any)=>string} [formatter]
+   *   可选：自定义单元格渲染函数，返回渲染后字符串
+   */
+
+  /**
+   * 表格整体配置
+   * @typedef {Object} TableOptions
+   * @property {string}   uri                     数据接口地址（必填）
+   * @property {Column[]} columns                 列配置数组（必填）
+   * @property {boolean}  mobile                  是否启用移动端适配（必填）
+   * @property {boolean}  selectable              是否可选择行（必填）
+   * @property {string}   lineHeight              行高（必填）
+   * @property {string}   height                  表格高度（必填）
+   * @property {boolean=} break                   [可选] 是否启用换行
+   * @property {Object=}  events                  [可选] 事件回调对象
+   * @property {string=}  empty_msg               [可选] 空数据提示
+   * @property {Object=}  params                  [可选] 请求参数
+   * @property {Object=}  headers                 [可选] 请求头
+   * @property {number[]=} pageSizes              [可选] 分页大小选项
+   * @property {boolean=} page                    [可选] 是否启用分页
+   */
 
   /**
    * 加载表格配置和数据
-   * @param {Object} config - 表格配置对象
-   * @param {string} config.uri - 数据接口地址
-   * @param {boolean} config.break - 是否启用换行
-   * @param {Array<Object>} config.columns - 列配置数组
-   * @param {boolean} config.mobile - 是否启用移动端适配
-   * @param {boolean} config.selectable - 是否可选择行
-   * @param {string} config.lineHeight - 行高设置
-   * @param {string} config.height - 表格高度
-   * @param {Object} config.events - 事件回调对象
-   * @param {string} config.empty_msg - 空数据提示信息
-   * @param {Object} config.params - 请求参数
-   * @param {Object} config.headers - 请求头
-   * @param {Array<number>} config.pageSizes - 分页大小选项
-   * @param {boolean} config.page - 是否启用分页
+   * @param {TableOptions} config - 表格配置对象
    */
   load(config) {
     let that = this;
