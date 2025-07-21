@@ -175,7 +175,9 @@ class DataTable {
    */
   reload(params = undefined, reloadPage = false) {
     this.config.params = params || this.config.params;
-    this.currentPage = 1;
+   if(reloadPage){
+     this.currentPage = 1;
+   }
     let that = this;
     this.loadData((loading) => {
       GridManager.setAjaxData(that.tableName, {
