@@ -81,7 +81,7 @@ class CardView {
     $.loader(
       [
         "/components/dataTable/Pagination.js",
-        "/components/dataTable/cardview.css",
+        "/components/dataTable/CardView.css",
         "URLUtils",
       ],
       function () {
