@@ -35,6 +35,14 @@ class CardView {
     /** @type {HTMLElement} 卡片容器 */
     this.cardsContainer = document.createElement("div");
     this.cardsContainer.className = "card-view-container";
+    /** @type {HTMLElement} 选择工具栏 */
+    this.selectionBar = document.createElement("div");
+    this.selectionBar.className = "card-view-selection-bar";
+    this.selectionBar.innerHTML = `
+      <mdui-button variant="tonal" class="card-view-select-all">全选本页</mdui-button>
+      <mdui-button variant="text" class="card-view-clear-all">取消全选</mdui-button>
+    `;
+    this.element.appendChild(this.selectionBar);
     this.element.appendChild(this.cardsContainer);
 
     /** @type {HTMLElement} 分页组件元素 */
@@ -44,6 +52,11 @@ class CardView {
 
     /** @type {Array} 选中的数据 */
     this.selectData = [];
+
+    const selectAllBtn = this.selectionBar.querySelector(".card-view-select-all");
+    const clearAllBtn = this.selectionBar.querySelector(".card-view-clear-all");
+    selectAllBtn.addEventListener("click", () => this.selectAll());
+    clearAllBtn.addEventListener("click", () => this.clearSelection());
   }
 
   /**
@@ -114,6 +127,8 @@ class CardView {
         if (!that.config.page) {
           that.page.style.display = "none";
         }
+        that.selectionBar.style.display = that.config.selectable ? "flex" : "none";
+        that.updateSelectionBarState();
 
         that.data = [];
         that.totalRecords = 0;
@@ -246,6 +261,7 @@ class CardView {
       const card = that.buildCard(row, index);
       that.cardsContainer.appendChild(card);
     });
+    this.updateSelectionBarState();
 
     if (that.config.page) {
       that.renderPage();
@@ -371,6 +387,76 @@ class CardView {
 
     if (this.config.events.onSelect) {
       this.config.events.onSelect(this.selectData);
+    }
+    this.updateSelectionBarState();
+  }
+
+  /**
+   * 全选当前页卡片
+   */
+  selectAll() {
+    if (!this.config || !this.config.selectable) return;
+
+    this.selectData = [...this.data];
+    const cards = this.cardsContainer.querySelectorAll(".card-view-item");
+    cards.forEach((card) => {
+      card.classList.add("selected");
+      const checkbox = card.querySelector("mdui-checkbox");
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+    });
+
+    if (this.config.events.onSelect) {
+      this.config.events.onSelect(this.selectData);
+    }
+    this.updateSelectionBarState();
+  }
+
+  /**
+   * 取消全选当前页卡片
+   */
+  clearSelection() {
+    if (!this.config || !this.config.selectable) return;
+
+    this.selectData = [];
+    const cards = this.cardsContainer.querySelectorAll(".card-view-item");
+    cards.forEach((card) => {
+      card.classList.remove("selected");
+      const checkbox = card.querySelector("mdui-checkbox");
+      if (checkbox) {
+        checkbox.checked = false;
+      }
+    });
+
+    if (this.config.events.onSelect) {
+      this.config.events.onSelect(this.selectData);
+    }
+    this.updateSelectionBarState();
+  }
+
+  /**
+   * 取消全选（兼容命名）
+   */
+  unselectAll() {
+    this.clearSelection();
+  }
+
+  /**
+   * 更新选择工具栏按钮状态
+   */
+  updateSelectionBarState() {
+    if (!this.selectionBar) return;
+    const selectAllBtn = this.selectionBar.querySelector(".card-view-select-all");
+    const clearAllBtn = this.selectionBar.querySelector(".card-view-clear-all");
+    const total = this.data ? this.data.length : 0;
+    const selected = this.selectData ? this.selectData.length : 0;
+
+    if (selectAllBtn) {
+      selectAllBtn.disabled = total === 0 || selected >= total;
+    }
+    if (clearAllBtn) {
+      clearAllBtn.disabled = selected === 0;
     }
   }
 

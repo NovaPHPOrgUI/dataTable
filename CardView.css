@@ -4,6 +4,18 @@
  */
 
 /* 卡片容器 */
+.card-view-selection-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.card-view-selection-bar mdui-button[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .card-view-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, var(--card-min-width, 300px));
