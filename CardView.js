@@ -274,7 +274,6 @@ class CardView {
   buildCard(row, index) {
     const card = document.createElement("div");
     card.className = "card-view-item";
-    card.style.boxSizing = ""
     card.setAttribute("data-index", index);
 
     // 如果可选择，添加选择指示器
@@ -298,9 +297,21 @@ class CardView {
     card.appendChild(content);
 
     // 点击事件
-    card.addEventListener("click", () => {
+    card.addEventListener("click", (event) => {
+      const target = event.target;
+      if (
+        target &&
+        typeof target.closest === "function" &&
+        (
+          target.closest(".card-checkbox") ||
+          target.closest(".book-actions") ||
+          target.closest("mdui-button-icon")
+        )
+      ) {
+        return;
+      }
       if (this.config.events.onCardClick) {
-        this.config.events.onCardClick(row, index);
+        this.config.events.onCardClick(row, index, event);
       }
     });
 

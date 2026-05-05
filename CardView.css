@@ -6,7 +6,8 @@
 /* 卡片容器 */
 .card-view-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, var(--card-min-width, 300px));
+  justify-content: center;
   gap: 16px;
   padding: 16px 0;
   min-height: 200px;
@@ -15,24 +16,16 @@
 /* 单个卡片 */
 .card-view-item {
   position: relative;
-  border: 1px solid var(--mdui-color-surface-variant, #e0e0e0);
+  width: var(--card-min-width, 300px);
+  max-width: 100%;
   border-radius: 12px;
-  padding: 20px;
-  background: var(--mdui-color-surface, #ffffff);
+  padding: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.card-view-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-  border-color: var(--mdui-color-primary, #2196f3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .card-view-item.selected {
-  border-color: var(--mdui-color-primary, #2196f3);
-  background: var(--mdui-color-primary-container, rgba(33, 150, 243, 0.08));
+  box-shadow: 0 0 0 2px rgba(var(--mdui-color-primary), 1) inset;
 }
 
 /* 复选框 */
@@ -40,11 +33,27 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 1;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 
 .card-checkbox mdui-checkbox {
   --mdui-comp-checkbox-size: 20px;
+}
+
+.card-view-item:hover .card-checkbox,
+.card-view-item.selected .card-checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .card-checkbox {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* 卡片内容 */
@@ -78,28 +87,12 @@
 /* 响应式设计 */
 @media (max-width: 768px) {
   .card-view-container {
-    grid-template-columns: 1fr;
     gap: 12px;
     padding: 12px 0;
   }
 
   .card-view-item {
+    width: 100%;
     padding: 16px;
-  }
-}
-
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .card-view-item {
-    background: var(--mdui-color-surface, #1e1e1e);
-    border-color: var(--mdui-color-surface-variant, #333);
-  }
-
-  .card-view-item:hover {
-    border-color: var(--mdui-color-primary, #64b5f6);
-  }
-
-  .card-view-item.selected {
-    background: var(--mdui-color-primary-container, rgba(100, 181, 246, 0.12));
   }
 }
