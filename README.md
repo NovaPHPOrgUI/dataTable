@@ -28,7 +28,7 @@ window.pageOnLoad = function () {
         page: true,                 // 是否分页（可选，默认 true）
         pageSizes: [5, 10, 20, 50, 100], // 分页大小选项（可选）
         empty_msg: '空空如也',       // 空数据提示（可选）
-        params: {},                 // 额外请求参数（可选）
+        params: {},                 // 额外请求参数（可选，支持对象或表单选择器如 '#searchForm'）
         headers: {},                // 额外请求头（可选）
         columns: [
             { field: 'id', name: 'ID', align: 'center', sortable: true },

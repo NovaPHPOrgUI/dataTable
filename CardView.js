@@ -79,7 +79,7 @@ class CardView {
    * @property {string}   cardWidth               卡片最小宽度（默认300px）
    * @property {Object=}  events                  [可选] 事件回调对象
    * @property {string=}  empty_msg               [可选] 空数据提示
-   * @property {Object=}  params                  [可选] 请求参数
+   * @property {(Object|string)=} params          [可选] 请求参数，支持对象或表单选择器
    * @property {Object=}  headers                 [可选] 请求头
    * @property {number[]=} pageSizes              [可选] 分页大小选项
    * @property {boolean=} page                    [可选] 是否启用分页
@@ -123,6 +123,9 @@ class CardView {
         that.pageSize = parseInt(
           $.url.getParam("size") || that.config.pageSizes[0],
         );
+        if (typeof that.config.params === "string") {
+          $.form.val(that.config.params, $.url.getAllParams());
+        }
 
         if (!that.config.page) {
           that.page.style.display = "none";
@@ -162,13 +165,15 @@ class CardView {
 
   /**
    * 重新加载数据
-   * @param {Object} params - 请求参数
+   * @param {Object|boolean} params - 请求参数
    * @param {boolean} reloadPage - 是否重新渲染分页
    */
   reload(params = undefined, reloadPage = false) {
-    this.config.params = params || this.config.params;
+    if (typeof params === 'boolean') reloadPage = params;
+    if (typeof params === 'object') this.config.params = params
     if (reloadPage) {
       this.currentPage = 1;
+      $.url.setParam('page','1')
     }
     let that = this;
     this.loadData((loading) => {
@@ -187,13 +192,14 @@ class CardView {
   fetchData(callback) {
     this.data = [];
     this.totalRecords = 0;
+    const requestParams = this.resolveParams();
 
     const data = Object.assign(
       {
         page: this.currentPage,
         pageSize: this.pageSize,
       },
-      this.config.params,
+      requestParams,
     );
 
     $.ajax({
@@ -219,6 +225,27 @@ class CardView {
   }
 
   /**
+   * 获取最终请求参数
+   * @returns {Object} 请求参数对象
+   */
+  resolveParams() {
+    if (typeof this.config.params === "string") {
+
+      let vals = $.form.val(this.config.params) || {}
+      Object.entries(vals).forEach(([key, value]) => {
+        $.url.setParam(key,value);
+      });
+
+
+      return $.form.val(this.config.params) || {};
+    }
+    if (typeof this.config.params === "object"  ) {
+      return this.config.params;
+    }
+    return {};
+  }
+
+  /**
    * 渲染分页组件
    */
   renderPage() {
@@ -235,7 +262,7 @@ class CardView {
         $.url.setParam("page", index);
         $.url.setParam("size", pageSize);
 
-        that.reload(that.config.params);
+        that.reload(false);
         if (that.config.events.onPaged) that.config.events.onPaged(index, pageSize);
       },
     });

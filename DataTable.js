@@ -68,7 +68,7 @@ class DataTable {
    * @property {boolean=} break                   [可选] 是否启用换行
    * @property {Object=}  events                  [可选] 事件回调对象
    * @property {string=}  empty_msg               [可选] 空数据提示
-   * @property {Object=}  params                  [可选] 请求参数
+   * @property {(Object|string)=} params          [可选] 请求参数，支持对象或表单选择器
    * @property {Object=}  headers                 [可选] 请求头
    * @property {number[]=} pageSizes              [可选] 分页大小选项
    * @property {boolean=} page                    [可选] 是否启用分页
@@ -128,6 +128,9 @@ class DataTable {
         );
         that.currentPage = parseInt($.url.getParam("page") || "1");
         that.pageSize = parseInt($.url.getParam("size") || that.config.pageSizes[0]);
+        if (typeof that.config.params === "string") {
+          $.form.val(that.config.params, $.url.getAllParams());
+        }
         if (that.config.mobile) {
           that.element.classList.add("table-mobile");
         }
@@ -170,14 +173,16 @@ class DataTable {
 
   /**
    * 重新加载表格数据
-   * @param {Object} params - 请求参数
+   * @param {Object|boolean} params - 请求参数
    * @param {boolean} reloadPage - 是否重新渲染分页
    */
   reload(params = undefined, reloadPage = false) {
-    this.config.params = params || this.config.params;
-   if(reloadPage){
-     this.currentPage = 1;
-   }
+    if (typeof params === "boolean") reloadPage = params;
+    if (typeof params === "object") this.config.params = params;
+    if (reloadPage) {
+      this.currentPage = 1;
+      $.url.setParam("page", "1");
+    }
     let that = this;
     this.loadData((loading) => {
       GridManager.setAjaxData(that.tableName, {
@@ -198,6 +203,7 @@ class DataTable {
   fetchData(callback) {
     this.data = [];
     this.totalRecords = 0;
+    const requestParams = this.resolveParams();
 
     const data = Object.assign(
       {
@@ -206,7 +212,7 @@ class DataTable {
         sortColumn: this.sortColumn,
         sortOrder: this.sortOrder,
       },
-      this.config.params,
+      requestParams,
     );
 
     $.ajax({
@@ -229,6 +235,24 @@ class DataTable {
       },
       complete: callback,
     });
+  }
+
+  /**
+   * 获取最终请求参数
+   * @returns {Object} 请求参数对象
+   */
+  resolveParams() {
+    if (typeof this.config.params === "string") {
+      const vals = $.form.val(this.config.params) || {};
+      Object.entries(vals).forEach(([key, value]) => {
+        $.url.setParam(key, value);
+      });
+      return vals;
+    }
+    if (typeof this.config.params === "object") {
+      return this.config.params;
+    }
+    return {};
   }
 
   /**
@@ -319,7 +343,7 @@ class DataTable {
         $.url.setParam("page", index);
         $.url.setParam("size", pageSize);
 
-        that.reload(that.config.params);
+        that.reload(false);
         if (that.config.events.onPaged)
           that.config.events.onPaged(index, pageSize);
       },
