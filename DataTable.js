@@ -206,13 +206,14 @@ class DataTable {
     const requestParams = this.resolveParams();
 
     const data = Object.assign(
+        requestParams,
       {
         page: this.currentPage,
         pageSize: this.pageSize,
         sortColumn: this.sortColumn,
         sortOrder: this.sortOrder,
       },
-      requestParams,
+
     );
 
     $.ajax({

@@ -197,11 +197,11 @@ class CardView {
     const requestParams = this.resolveParams();
 
     const data = Object.assign(
+        requestParams,
       {
         page: this.currentPage,
         pageSize: this.pageSize,
       },
-      requestParams,
     );
 
     $.ajax({
