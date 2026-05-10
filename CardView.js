@@ -32,6 +32,8 @@ class CardView {
       return;
     }
 
+    this.styleContainer = document.createElement('style');
+    this.element.appendChild(this.styleContainer);
     /** @type {HTMLElement} 卡片容器 */
     this.cardsContainer = document.createElement("div");
     this.cardsContainer.className = "card-view-container";
@@ -272,11 +274,19 @@ class CardView {
    * 渲染卡片
    */
   renderCards() {
-    this.cardsContainer.innerHTML = "";
-    this.cardsContainer.style.setProperty(
-      "--card-min-width",
-      this.config.cardWidth,
-    );
+
+
+    this.styleContainer.textContent = `
+    .card-view-container { --card-min-width: ${this.config.cardWidth}; }
+    
+    @media (max-width: ${this.config.cardWidth}) {
+    .card-view-container {
+    --card-min-width: 100% !important;
+        }
+    }
+    `;
+
+    this.cardsContainer.innerHTML = '';
 
     if (this.data.length === 0) {
       this.renderEmpty();
