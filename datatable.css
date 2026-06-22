@@ -1773,3 +1773,7 @@ td[gm-order] {
 .break-line {
     white-space: break-spaces;
 }
+
+[td-name="actions"] {
+    text-overflow: unset !important;
+}
