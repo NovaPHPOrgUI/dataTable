@@ -18,8 +18,7 @@
 
 .card-view-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, var(--card-min-width, 300px));
-  justify-content: center;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 300px), 1fr));
   gap: 16px;
   padding: 16px 0;
   min-height: 200px;
@@ -28,8 +27,7 @@
 /* 单个卡片 */
 .card-view-item {
   position: relative;
-  width: var(--card-min-width, 300px);
-  max-width: 100%;
+  width: 100%;
   border-radius: 12px;
   cursor: pointer;
   box-sizing: border-box;
@@ -98,12 +96,35 @@
 /* 响应式设计 */
 @media (max-width: 768px) {
   .card-view-container {
+    --card-min-width: 140px;
     gap: 12px;
     padding: 12px 0;
   }
 
   .card-view-item {
     width: 100%;
-    padding: 16px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .card-view-container {
+    --card-min-width: 80px;
+    gap: 8px;
+  }
+
+  .card-view-item {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .card-view-container {
+    --card-min-width: 70px;
+    gap: 6px;
+  }
+
+  .card-view-item {
+    padding: 6px;
   }
 }
