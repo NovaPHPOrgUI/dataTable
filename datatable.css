@@ -1777,3 +1777,7 @@ td[gm-order] {
 [td-name="actions"] {
     text-overflow: unset !important;
 }
+
+.table-card .table-wrap {
+    border-radius: 12px;
+}
