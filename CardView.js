@@ -1,9 +1,8 @@
 /**
  * 卡片视图组件
- * 以卡片形式展示数据，支持分页、选择、点击事件
+ * 以卡片网格展示数据：分页、多选、点击；移动端自适应列数
  * @file CardView.js
- * @author License Auto System
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 /*
@@ -14,13 +13,8 @@
  * Vestibulum commodo. Ut rhoncus gravida arcu.
  */
 
-/**
- * 卡片视图类
- * 提供卡片式数据展示，包括数据加载、渲染、分页、选择等
- */
 class CardView {
   /**
-   * 构造函数
    * @param {string} id - 容器的CSS选择器
    */
   constructor(id) {
@@ -32,19 +26,21 @@ class CardView {
       return;
     }
 
-    this.styleContainer = document.createElement('style');
-    this.element.appendChild(this.styleContainer);
-    /** @type {HTMLElement} 卡片容器 */
-    this.cardsContainer = document.createElement("div");
-    this.cardsContainer.className = "card-view-container";
+    this.element.classList.add("cv");
+
     /** @type {HTMLElement} 选择工具栏 */
     this.selectionBar = document.createElement("div");
     this.selectionBar.className = "card-view-selection-bar";
     this.selectionBar.innerHTML = `
       <mdui-button variant="tonal" class="card-view-select-all">全选本页</mdui-button>
       <mdui-button variant="text" class="card-view-clear-all">取消全选</mdui-button>
+      <span class="card-view-selected-count" aria-live="polite"></span>
     `;
     this.element.appendChild(this.selectionBar);
+
+    /** @type {HTMLElement} 卡片容器 */
+    this.cardsContainer = document.createElement("div");
+    this.cardsContainer.className = "card-view-container";
     this.element.appendChild(this.cardsContainer);
 
     /** @type {HTMLElement} 分页组件元素 */
@@ -52,13 +48,14 @@ class CardView {
     this.page.id = "page" + Math.random().toString(36).substring(2);
     this.element.appendChild(this.page);
 
-    /** @type {Array} 选中的数据 */
+    this.data = [];
+    this.totalRecords = 0;
     this.selectData = [];
 
-    const selectAllBtn = this.selectionBar.querySelector(".card-view-select-all");
-    const clearAllBtn = this.selectionBar.querySelector(".card-view-clear-all");
-    selectAllBtn.addEventListener("click", () => this.selectAll());
-    clearAllBtn.addEventListener("click", () => this.clearSelection());
+    this.selectionBar.querySelector(".card-view-select-all").addEventListener("click", () => this.selectAll());
+    this.selectionBar.querySelector(".card-view-clear-all").addEventListener("click", () => this.clearSelection());
+    this.cardsContainer.addEventListener("change", (e) => this.onCheck(e));
+    this.cardsContainer.addEventListener("click", (e) => this.onClick(e));
   }
 
   /**
@@ -67,8 +64,7 @@ class CardView {
    * @property {string}  field      字段名
    * @property {string}  name       显示文本
    * @property {boolean} [hidden]   是否隐藏（默认false）
-   * @property {(value:any, row?:any)=>string} [formatter]
-   *   可选：自定义渲染函数，返回渲染后字符串
+   * @property {(value:any, row?:any, index?:number)=>string} [formatter]
    */
 
   /**
@@ -89,7 +85,7 @@ class CardView {
 
   /**
    * 加载配置和数据
-   * @param {CardViewOptions} config - 配置对象
+   * @param {CardViewOptions} config
    */
   load(config) {
     let that = this;
@@ -107,11 +103,7 @@ class CardView {
             columns: [],
             selectable: false,
             cardWidth: "300px",
-            events: {
-              onCardClick: function (row, index) {},
-              onPaged: function (page) {},
-              onSelect: function (rows) {},
-            },
+            events: {},
             empty_msg: "空空如也",
             params: {},
             headers: {},
@@ -122,87 +114,68 @@ class CardView {
         );
 
         that.currentPage = parseInt($.url.getParam("page") || "1");
-        that.pageSize = parseInt(
-          $.url.getParam("size") || that.config.pageSizes[0],
-        );
+        that.pageSize = parseInt($.url.getParam("size") || that.config.pageSizes[0]);
         if (typeof that.config.params === "string") {
           $.form.val(that.config.params, $.url.getAllParams());
         }
 
-        if (!that.config.page) {
-          that.page.style.display = "none";
-        }
-        that.selectionBar.style.display = that.config.selectable ? "flex" : "none";
-        that.updateSelectionBarState();
-
-        that.data = [];
-        that.totalRecords = 0;
-        that.loadData((loading) => {
-          try {
-            that.renderCards();
-            loading.close();
-          } catch (e) {
-            $.logger.error(e);
-          }
-        });
+        that.page.style.display = that.config.page ? "" : "none";
+        that.selectionBar.classList.toggle("is-visible", !!that.config.selectable);
+        that.cardsContainer.style.setProperty(
+          "--card-min-width",
+          typeof that.config.cardWidth === "number"
+            ? that.config.cardWidth + "px"
+            : that.config.cardWidth,
+        );
+        that.reload();
       },
     );
   }
 
   /**
-   * 加载数据
-   * @param {Function} callback - 加载完成后的回调函数
+   * 重新加载数据
+   * @param {Object|boolean} params
+   * @param {boolean} reloadPage - 是否重置到第一页
    */
-  loadData(callback) {
-    this.selectData = [];
-    if (this.config.events.onSelect)
-      this.config.events.onSelect(this.selectData);
-    let that = this;
+  reload(params = undefined, reloadPage = false) {
+    if (typeof params === "boolean") reloadPage = params;
+    if (typeof params === "object" && params !== null) this.config.params = params;
+    if (reloadPage) {
+      this.currentPage = 1;
+      $.url.setParam("page", "1");
+    }
+    this.setSelected([], true);
     const loading = new Loading(this.element);
     loading.show();
     this.fetchData(() => {
-      callback(loading);
-    });
-  }
-
-  /**
-   * 重新加载数据
-   * @param {Object|boolean} params - 请求参数
-   * @param {boolean} reloadPage - 是否重新渲染分页
-   */
-  reload(params = undefined, reloadPage = false) {
-    if (typeof params === 'boolean') reloadPage = params;
-    if (typeof params === 'object') this.config.params = params
-    if (reloadPage) {
-      this.currentPage = 1;
-      $.url.setParam('page','1')
-    }
-    let that = this;
-    this.loadData((loading) => {
-      that.renderCards();
-      if (reloadPage && that.config.page) {
-        that.renderPage();
+      const lastPage = Math.max(1, Math.ceil(this.totalRecords / this.pageSize));
+      if (this.data.length === 0 && this.currentPage > lastPage) {
+        this.currentPage = lastPage;
+        $.url.setParam("page", String(lastPage));
+        loading.close();
+        this.reload();
+        return;
+      }
+      try {
+        this.renderCards();
+        if (this.config.page) this.renderPage();
+      } catch (e) {
+        $.logger.error(e);
       }
       loading.close();
     });
   }
 
   /**
-   * 获取数据
-   * @param {Function} callback - 获取完成后的回调函数
+   * @param {Function} callback
    */
   fetchData(callback) {
     this.data = [];
     this.totalRecords = 0;
-    const requestParams = this.resolveParams();
-
-    const data = Object.assign(
-        requestParams,
-      {
-        page: this.currentPage,
-        pageSize: this.pageSize,
-      },
-    );
+    const data = Object.assign(this.resolveParams(), {
+      page: this.currentPage,
+      pageSize: this.pageSize,
+    });
 
     $.ajax({
       method: "GET",
@@ -210,13 +183,8 @@ class CardView {
       headers: this.config.headers,
       data: data,
       success: (json) => {
-        try {
-          this.data = json.data;
-          this.totalRecords = json.count;
-        } catch (e) {
-          $.toaster.error("数据解析出错！");
-          console.error(e);
-        }
+        this.data = json.data || [];
+        this.totalRecords = json.count || 0;
       },
       error: (xhr) => {
         $.toaster.error("请求失败");
@@ -227,29 +195,19 @@ class CardView {
   }
 
   /**
-   * 获取最终请求参数
-   * @returns {Object} 请求参数对象
+   * @returns {Object}
    */
   resolveParams() {
     if (typeof this.config.params === "string") {
-
-      let vals = $.form.val(this.config.params) || {}
+      const vals = $.form.val(this.config.params) || {};
       Object.entries(vals).forEach(([key, value]) => {
-        $.url.setParam(key,value);
+        $.url.setParam(key, value);
       });
-
-
-      return $.form.val(this.config.params) || {};
+      return vals;
     }
-    if (typeof this.config.params === "object"  ) {
-      return this.config.params;
-    }
-    return {};
+    return Object.assign({}, this.config.params);
   }
 
-  /**
-   * 渲染分页组件
-   */
   renderPage() {
     let that = this;
     this.page.init({
@@ -260,264 +218,177 @@ class CardView {
       onPageChange: function (index, pageSize) {
         that.currentPage = index;
         that.pageSize = pageSize;
-
         $.url.setParam("page", index);
         $.url.setParam("size", pageSize);
-
-        that.reload(false);
+        that.reload();
         if (that.config.events.onPaged) that.config.events.onPaged(index, pageSize);
       },
     });
   }
 
-  /**
-   * 渲染卡片
-   */
   renderCards() {
-
-
-    this.styleContainer.textContent = `
-    .card-view-container { --card-min-width: ${this.config.cardWidth}; }
-    
-    @media (max-width: ${this.config.cardWidth}) {
-    .card-view-container {
-    --card-min-width: 100% !important;
-        }
-    }
-    `;
-
-    this.cardsContainer.innerHTML = '';
+    this.cardsContainer.innerHTML = "";
 
     if (this.data.length === 0) {
       this.renderEmpty();
+      this.updateSelectionBarState();
       return;
     }
 
-    let that = this;
     this.data.forEach((row, index) => {
-      const card = that.buildCard(row, index);
-      that.cardsContainer.appendChild(card);
+      this.cardsContainer.appendChild(this.buildCard(row, index));
     });
     this.updateSelectionBarState();
-
-    if (that.config.page) {
-      that.renderPage();
-    }
   }
 
-  /**
-   * 渲染空状态
-   */
   renderEmpty() {
     const empty = document.createElement("div");
     empty.className = "card-view-empty";
     empty.innerHTML = `
-      <div class="empty-icon">📭</div>
+      <mdui-icon name="inbox" class="empty-icon"></mdui-icon>
       <div class="empty-text">${this.config.empty_msg}</div>
     `;
     this.cardsContainer.appendChild(empty);
   }
 
   /**
-   * 构建单个卡片
-   * @param {Object} row - 行数据
-   * @param {number} index - 索引
-   * @returns {HTMLElement} 卡片元素
+   * @param {Object} row
+   * @param {number} index
+   * @returns {HTMLElement}
    */
   buildCard(row, index) {
     const card = document.createElement("div");
     card.className = "card-view-item";
-    card.setAttribute("data-index", index);
+    card.dataset.index = index;
 
-    // 如果可选择，添加选择指示器
     if (this.config.selectable) {
       const checkbox = document.createElement("div");
       checkbox.className = "card-checkbox";
-      checkbox.innerHTML = '<mdui-checkbox></mdui-checkbox>';
+      checkbox.innerHTML = "<mdui-checkbox></mdui-checkbox>";
       card.appendChild(checkbox);
-
-      const checkboxInput = checkbox.querySelector("mdui-checkbox");
-      checkboxInput.addEventListener("change", (e) => {
-        e.stopPropagation();
-        this.toggleSelect(row, card);
-      });
     }
 
-    // 渲染模板内容
     const content = document.createElement("div");
     content.className = "card-content";
     content.innerHTML = this.renderTemplate(this.config.template, row, index);
     card.appendChild(content);
-
-    // 点击事件
-    card.addEventListener("click", (event) => {
-      const target = event.target;
-      if (
-        target &&
-        typeof target.closest === "function" &&
-        (
-          target.closest(".card-checkbox") ||
-          target.closest(".book-actions") ||
-          target.closest("mdui-button-icon")
-        )
-      ) {
-        return;
-      }
-      if (this.config.events.onCardClick) {
-        this.config.events.onCardClick(row, index, event);
-      }
-    });
-
     return card;
   }
 
   /**
-   * 渲染模板
-   * @param {string} template - 模板字符串
-   * @param {Object} row - 数据行
-   * @param {number} index - 索引
-   * @returns {string} 渲染后的HTML
+   * @param {string} template
+   * @param {Object} row
+   * @param {number} index
+   * @returns {string}
    */
   renderTemplate(template, row, index) {
-    let html = template;
-
-    // 替换所有 {{field}} 标记
-    html = html.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+    return template.replace(/\{\{(\w+)\}\}/g, (match, field) => {
       let value = row[field];
-
-      // 查找是否有对应的 column 配置
-      const column = this.config.columns.find(col => col.field === field);
-      
-      // 如果有格式化函数，先格式化
+      const column = this.config.columns.find((col) => col.field === field);
       if (column && column.formatter) {
         value = column.formatter(value, row, index);
       }
-
-      // 返回值，如果为 null/undefined 返回空字符串
-      return value !== null && value !== undefined ? value : "";
+      return value != null ? value : "";
     });
-
-    return html;
   }
 
   /**
-   * 切换卡片选中状态
-   * @param {Object} row - 行数据
-   * @param {HTMLElement} card - 卡片元素
+   * 卡片点击：忽略复选框与操作按钮
+   * @param {MouseEvent} e
    */
-  toggleSelect(row, card) {
-    const checkbox = card.querySelector("mdui-checkbox");
-    const isChecked = checkbox.checked;
-
-    if (isChecked) {
-      card.classList.add("selected");
-      if (!this.selectData.includes(row)) {
-        this.selectData.push(row);
-      }
-    } else {
-      card.classList.remove("selected");
-      const index = this.selectData.indexOf(row);
-      if (index > -1) {
-        this.selectData.splice(index, 1);
-      }
+  onClick(e) {
+    if (
+      e.target.closest(".card-checkbox") ||
+      e.target.closest(".book-actions") ||
+      e.target.closest("mdui-button-icon") ||
+      e.target.closest("mdui-button") ||
+      e.target.closest("a")
+    ) {
+      return;
     }
-
-    if (this.config.events.onSelect) {
-      this.config.events.onSelect(this.selectData);
+    const card = e.target.closest(".card-view-item");
+    if (!card) return;
+    const index = parseInt(card.dataset.index);
+    const row = this.data[index];
+    if (this.config.events.onCardClick) {
+      this.config.events.onCardClick(row, index, e);
     }
+  }
+
+  /**
+   * @param {Event} e
+   */
+  onCheck(e) {
+    if (this._syncingCheck) return;
+    const box = e.target.closest("mdui-checkbox");
+    if (!box) return;
+    const card = box.closest(".card-view-item");
+    if (!card) return;
+    const row = this.data[parseInt(card.dataset.index)];
+    const next = this.selectData.filter((r) => r !== row);
+    if (box.checked) next.push(row);
+    this.setSelected(next);
+  }
+
+  /**
+   * @param {Array<Object>} rows
+   * @param {boolean=} silent - 为 true 时不触发 onSelect
+   */
+  setSelected(rows, silent = false) {
+    this.selectData = rows;
+    this._syncingCheck = true;
+    this.cardsContainer.querySelectorAll(".card-view-item").forEach((card) => {
+      const checked = rows.includes(this.data[parseInt(card.dataset.index)]);
+      card.classList.toggle("selected", checked);
+      const box = card.querySelector("mdui-checkbox");
+      if (box && box.checked !== checked) box.checked = checked;
+    });
+    this._syncingCheck = false;
+    if (!silent && this.config.events.onSelect) this.config.events.onSelect(rows);
     this.updateSelectionBarState();
   }
 
-  /**
-   * 全选当前页卡片
-   */
   selectAll() {
     if (!this.config || !this.config.selectable) return;
-
-    this.selectData = [...this.data];
-    const cards = this.cardsContainer.querySelectorAll(".card-view-item");
-    cards.forEach((card) => {
-      card.classList.add("selected");
-      const checkbox = card.querySelector("mdui-checkbox");
-      if (checkbox) {
-        checkbox.checked = true;
-      }
-    });
-
-    if (this.config.events.onSelect) {
-      this.config.events.onSelect(this.selectData);
-    }
-    this.updateSelectionBarState();
+    this.setSelected(this.data.slice());
   }
 
-  /**
-   * 取消全选当前页卡片
-   */
   clearSelection() {
     if (!this.config || !this.config.selectable) return;
-
-    this.selectData = [];
-    const cards = this.cardsContainer.querySelectorAll(".card-view-item");
-    cards.forEach((card) => {
-      card.classList.remove("selected");
-      const checkbox = card.querySelector("mdui-checkbox");
-      if (checkbox) {
-        checkbox.checked = false;
-      }
-    });
-
-    if (this.config.events.onSelect) {
-      this.config.events.onSelect(this.selectData);
-    }
-    this.updateSelectionBarState();
+    this.setSelected([]);
   }
 
-  /**
-   * 取消全选（兼容命名）
-   */
+  /** 兼容旧命名 */
   unselectAll() {
     this.clearSelection();
   }
 
-  /**
-   * 更新选择工具栏按钮状态
-   */
   updateSelectionBarState() {
     if (!this.selectionBar) return;
     const selectAllBtn = this.selectionBar.querySelector(".card-view-select-all");
     const clearAllBtn = this.selectionBar.querySelector(".card-view-clear-all");
+    const countEl = this.selectionBar.querySelector(".card-view-selected-count");
     const total = this.data ? this.data.length : 0;
     const selected = this.selectData ? this.selectData.length : 0;
 
-    if (selectAllBtn) {
-      selectAllBtn.disabled = total === 0 || selected >= total;
-    }
-    if (clearAllBtn) {
-      clearAllBtn.disabled = selected === 0;
-    }
+    if (selectAllBtn) selectAllBtn.disabled = total === 0 || selected >= total;
+    if (clearAllBtn) clearAllBtn.disabled = selected === 0;
+    if (countEl) countEl.textContent = selected > 0 ? `已选 ${selected}` : "";
   }
 
-  /**
-   * 获取选中的数据
-   * @returns {Array<Object>} 选中的数据数组
-   */
   getSelectedRows() {
     return this.selectData;
   }
 
-  /**
-   * 销毁实例
-   */
   destroy() {
-    this.cardsContainer.innerHTML = "";
-    this.page.innerHTML = "";
+    this.cardsContainer.remove();
+    this.selectionBar.remove();
+    this.page.remove();
+    this.element.classList.remove("cv");
+    this.data = [];
+    this.selectData = [];
   }
 
-  /**
-   * 获取指定索引的数据
-   * @param {number} index - 索引
-   * @returns {Object} 数据对象
-   */
   getRow(index) {
     return this.data[index];
   }

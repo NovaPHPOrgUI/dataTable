@@ -1,6 +1,7 @@
 # DataTable 数据表格组件
 
-> jsMap key: `DataTable`
+> jsMap key: `DataTable`  
+> 原生 table 实现，不再依赖 GridManager。分页组件为 `<mdui-page-btn>`。
 
 ## 基础用法
 

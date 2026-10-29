@@ -1,9 +1,9 @@
 /**
  * 分页组件
- * 提供功能完整的分页控件，支持首页、上一页、下一页、末页、页码显示等功能
+ * 自定义元素 <mdui-page-btn>：上一页/下一页、带省略号的页码、总数、每页条数、跳页
+ * 使用 light DOM，避免 Shadow DOM 里 mdui-dropdown 浮层坐标漂移
  * @file Pagination.js
- * @author License Auto System
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 /*
@@ -16,129 +16,189 @@
 
 "use strict";
 
-/**
- * 分页组件类
- * 继承自HTMLElement，提供自定义分页元素
- */
+const PG_STYLE_ID = "mdui-page-btn-style";
+
+function ensurePaginationStyle() {
+  if (document.getElementById(PG_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = PG_STYLE_ID;
+  style.textContent = `
+    mdui-page-btn { display: block; }
+    mdui-page-btn .pg {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      margin-top: 0.75rem;
+      padding: 0.25rem;
+      font-size: var(--mdui-typescale-body-medium-size);
+      line-height: var(--mdui-typescale-body-medium-line-height);
+      color: rgb(var(--mdui-color-on-surface-variant));
+    }
+    mdui-page-btn .pg:empty { display: none; }
+    mdui-page-btn .pg-info,
+    mdui-page-btn .pg-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    mdui-page-btn .pg-count {
+      padding: 0 0.25rem;
+      white-space: nowrap;
+    }
+    mdui-page-btn .pg-limits {
+      display: inline-flex;
+      width: fit-content;
+      max-width: max-content;
+      vertical-align: middle;
+    }
+    mdui-page-btn .pg-btn {
+      appearance: none;
+      border: 0;
+      margin: 0;
+      padding: 0 0.5rem;
+      min-width: 2.25rem;
+      height: 2.25rem;
+      border-radius: var(--mdui-shape-corner-full);
+      background: transparent;
+      color: rgb(var(--mdui-color-on-surface));
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: background-color var(--mdui-motion-duration-short4) var(--mdui-motion-easing-standard),
+                  color var(--mdui-motion-duration-short4) var(--mdui-motion-easing-standard);
+    }
+    mdui-page-btn .pg-btn:hover { background: rgba(var(--mdui-color-on-surface), 0.08); }
+    mdui-page-btn .pg-btn:focus-visible {
+      outline: 2px solid rgb(var(--mdui-color-primary));
+      outline-offset: 2px;
+    }
+    mdui-page-btn .pg-btn[aria-current="page"] {
+      background: rgb(var(--mdui-color-primary));
+      color: rgb(var(--mdui-color-on-primary));
+      font-weight: 600;
+      cursor: default;
+    }
+    mdui-page-btn .pg-ellipsis {
+      min-width: 2.25rem;
+      text-align: center;
+      color: rgb(var(--mdui-color-on-surface-variant));
+      user-select: none;
+    }
+    mdui-page-btn .pg-jump {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-left: 0.5rem;
+      white-space: nowrap;
+    }
+    mdui-page-btn .pg-jump input {
+      width: 3rem;
+      height: 2rem;
+      padding: 0 0.5rem;
+      border: 1px solid rgb(var(--mdui-color-outline));
+      border-radius: var(--mdui-shape-corner-small);
+      background: rgb(var(--mdui-color-surface));
+      color: rgb(var(--mdui-color-on-surface));
+      font: inherit;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+    mdui-page-btn .pg-jump input::-webkit-outer-spin-button,
+    mdui-page-btn .pg-jump input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    mdui-page-btn .pg-jump input:focus {
+      outline: none;
+      border-color: rgb(var(--mdui-color-primary));
+      box-shadow: 0 0 0 1px rgb(var(--mdui-color-primary));
+    }
+    @media (max-width: 600px) {
+      mdui-page-btn .pg {
+        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.375rem;
+      }
+      mdui-page-btn .pg-info,
+      mdui-page-btn .pg-nav {
+        justify-content: center;
+        width: 100%;
+      }
+      mdui-page-btn .pg-jump { display: none; }
+      mdui-page-btn .pg-btn {
+        min-width: 2.5rem;
+        height: 2.5rem;
+      }
+      mdui-page-btn .pg-count { font-size: 0.8125rem; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 class Pagination extends HTMLElement {
-  /**
-   * 构造函数
-   * 初始化Shadow DOM和样式
-   */
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
+    // createElement('mdui-page-btn') 时构造函数不能往 light DOM 塞子节点
+    // （Shadow DOM 可以；这里为了 mdui-dropdown 定位才用 light DOM）
+    ensurePaginationStyle();
 
-    this.shadowRoot.innerHTML = `
-            <div id="pagination" class="box page page-default"></div>
-            <style>
-                .box {
-                    display: flex;
-                    flex-direction: column; /* 改为列方向 */
-                    justify-content: center;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    margin-top: 1rem;
-                }
-                .page-info{
-                    margin-top: 0.5rem;
-                }
-                .page-container {
-                    display: flex;
-                    align-items: center;
-                    flex-wrap: wrap;
-                }
-                .page-container-list {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem; 
-                }
-                .page-curr {
-                    background-color: rgba(var(--mdui-color-primary))!important; 
-                    color: rgba(var(--mdui-color-on-primary)); 
-                    font-weight: bold; 
-                }
-                .page-prev, .page-next, .page-btn {
-                    padding: 0 10px;
-                    margin: 0 5px; 
-                }
-                .disabled {
-                    pointer-events: none;
-                    color: rgba(var(--mdui-color-on-surface-variant), 0.5);
-                }
-                .page-item {
-                    margin: 0.25rem;
-                    cursor: pointer;
-                    padding: 0.5rem;
-                    border-radius: var(--mdui-shape-corner-medium); 
-                    display: flex;
-                    justify-content: center;
-                    min-width: 1rem;
-                    background-color: rgba(var(--mdui-color-background)); 
-                    box-shadow: var(--mdui-elevation-level1);
-                    transition: background-color 0.3s, box-shadow 0.3s; 
-                }
-                .page-item:hover {
-                    background-color: rgba(var(--mdui-color-secondary-container)); 
-                    box-shadow: var(--mdui-elevation-level2);
-                }
-                .page-limits select {
-                    margin-left: 10px;
-                    padding: 0.25rem; 
-                    border-radius: var(--mdui-shape-corner-medium); 
-                    border: 1px solid rgba(var(--mdui-color-outline), 0.2); 
-                    background-color: rgba(var(--mdui-color-background)); 
-                    box-shadow: var(--mdui-elevation-level1);
-                }
-                .page-limits select:focus {
-                    border-color: rgba(var(--mdui-color-primary), 0.8); 
-                    box-shadow: var(--mdui-elevation-level2);
-                }
-                .page-count {
-                    font-size: 0.875rem; 
-                    color: rgba(var(--mdui-color-on-surface), 0.7); 
-                    padding: 0.5rem; 
-                }
-                @media (max-width: 600px) {
-                    .page-container-list {
-                        flex-wrap: wrap; 
-                        gap: 0.25rem; 
-                    }
-                    .page-item {
-                        min-width: 2rem; 
-                        padding: 0.25rem; 
-                    }
-                }
-            </style>
-        `;
+    this._compactMq = window.matchMedia("(max-width: 600px)");
+    this._onCompactChange = () => {
+      if (this.options) this.render();
+    };
+    if (this._compactMq.addEventListener) {
+      this._compactMq.addEventListener("change", this._onCompactChange);
+    } else {
+      this._compactMq.addListener(this._onCompactChange);
+    }
 
-const that = this;
-
-    /**
-     * 监听翻译设置事件
-     */
-    $.emitter.on('translate:set', () => {
-        TranslateUtils.autoTranslate(this.shadowRoot);
+    $.emitter.on("translate:set", () => {
+      TranslateUtils.autoTranslate(this);
     });
+  }
+
+  /** 确保导航根节点存在（init / connected 时再建） */
+  ensureRoot() {
+    let nav = this.querySelector(":scope > .pg");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.className = "pg";
+      nav.setAttribute("aria-label", "分页");
+      this.appendChild(nav);
+    }
+    this.element = nav;
+    return nav;
+  }
+
+  connectedCallback() {
+    this.ensureRoot();
+  }
+
+  /**
+   * 窄屏压缩页码窗口
+   * @returns {number}
+   */
+  effectivePageCount() {
+    const base = Math.max(3, this.options.pageCount || 5);
+    return this._compactMq && this._compactMq.matches ? Math.min(base, 3) : base;
   }
 
   /**
    * 初始化分页组件
-   * @param {Object} options - 分页配置选项
+   * @param {Object} options
    * @param {number} options.pageIndex - 当前页码
    * @param {number} options.pageSize - 每页显示条数
    * @param {Array<number>} options.pageSizes - 每页条数选项
-   * @param {number} options.pageCount - 显示的页码数量
+   * @param {number} options.pageCount - 当前页两侧最多显示的页码数量（含当前页）
    * @param {number} options.total - 总记录数
-   * @param {string} options.layout - 布局配置
+   * @param {string} options.layout - 布局：first, prev, pager, next, last, jumper
    * @param {boolean} options.showCount - 是否显示总条数
    * @param {boolean} options.showLimits - 是否显示每页条数选择器
-   * @param {Function} options.onPageChange - 页码改变回调函数
+   * @param {Function} options.onPageChange - 页码改变回调 (index, pageSize)
    */
   init(options) {
-    /** @type {Array<string>} 支持的布局组件 */
-    this._layout = ["first", "prev", "pager", "next", "last"];
+    this._layout = ["first", "prev", "pager", "next", "last", "jumper"];
     this.options = Object.assign(
       {
         pageIndex: 1,
@@ -146,202 +206,188 @@ const that = this;
         pageSizes: [5, 10, 20, 50, 100],
         pageCount: 5,
         total: 0,
-        layout: "first, prev, pager, next, last",
-        showCount: true, // 新增参数，控制是否显示条目数
-        showLimits: true, // 新增参数，控制是否显示分页数
+        layout: "prev, pager, next, jumper",
+        showCount: true,
+        showLimits: true,
         onPageChange: function (index, pageSize) {},
       },
       options,
     );
 
-    /** @type {HTMLElement} 分页容器元素 */
-    this.element = this.shadowRoot.getElementById("pagination");
-    /** @type {number} 总页数 */
+    this.ensureRoot();
     this.pageNum = 0;
     this.render();
   }
 
-  /**
-   * 渲染分页组件
-   */
   render() {
-    this.pageNum = Math.ceil(this.options.total / this.options.pageSize);
+    this.pageNum = Math.max(1, Math.ceil(this.options.total / this.options.pageSize));
+    this.options.pageIndex = Math.min(Math.max(1, this.options.pageIndex), this.pageNum);
 
-    if (this.options.pageIndex > this.pageNum)
-      this.options.pageIndex = this.pageNum;
-    if (this.options.pageIndex <= 0) this.options.pageIndex = 1;
+    this.element.innerHTML = "";
 
-    this.element.innerHTML = ``;
-    const container = this.createElement("div", "page-container-list");
+    if (this.options.showCount || this.options.showLimits) {
+      const info = this.createElement("div", "pg-info");
+      if (this.options.showCount) info.appendChild(this.count());
+      if (this.options.showLimits) info.appendChild(this.limits());
+      this.element.appendChild(info);
+    }
 
+    const nav = this.createElement("div", "pg-nav");
     this.options.layout.split(",").forEach((v) => {
       const method = v.trim();
-      if (this._layout.includes(method) && typeof this[method] === "function") {
-        const element = this[method]();
-        if (Array.isArray(element)) {
-          element.forEach((item) => container.appendChild(item));
-        } else if (element) container.appendChild(element);
+      if (!this._layout.includes(method)) return;
+      const element = this[method]();
+      if (Array.isArray(element)) {
+        element.forEach((item) => nav.appendChild(item));
+      } else if (element) {
+        nav.appendChild(element);
       }
     });
-
-    this.element.appendChild(container);
-
-    // 创建第二行容器
-    if (this.options.showCount || this.options.showLimits) {
-      const infoContainer = this.createElement("div", [
-        "page-container-list",
-        "page-info",
-      ]);
-      if (this.options.showCount) {
-        const countElement = this.count();
-        infoContainer.appendChild(countElement);
-      }
-      if (this.options.showLimits) {
-        const limitsElement = this.limits();
-        infoContainer.appendChild(limitsElement);
-      }
-      this.element.appendChild(infoContainer);
-    }
+    this.element.appendChild(nav);
   }
 
   /**
-   * 创建首页按钮
-   * @returns {HTMLElement} 首页按钮元素
+   * @param {string} icon
+   * @param {string} label
+   * @param {number} target
+   * @param {boolean} disabled
+   * @returns {HTMLElement}
    */
+  iconButton(icon, label, target, disabled) {
+    const btn = this.createElement("mdui-button-icon", "pg-icon");
+    btn.setAttribute("icon", icon);
+    btn.setAttribute("aria-label", label);
+    btn.disabled = disabled;
+    btn.addEventListener("click", () => this.handleChangePage(target));
+    return btn;
+  }
+
   first() {
-    const disabled = this.options.pageIndex <= 1 ? ["disabled"] : [];
-    const element = this.createElement("span", ["page-item", ...disabled]);
-    element.innerHTML = `<mdui-icon name="keyboard_double_arrow_left"></mdui-icon>`;
-    element.addEventListener("click", () => {
-      if (this.options.pageIndex > 1) {
-        this.handleChangePage(1);
-      }
-    });
-    return element;
+    return this.iconButton("first_page", "首页", 1, this.options.pageIndex <= 1);
   }
 
-  /**
-   * 创建上一页按钮
-   * @returns {HTMLElement} 上一页按钮元素
-   */
   prev() {
-    const disabled = this.options.pageIndex <= 1 ? ["disabled"] : [];
-    const element = this.createElement("span", ["page-item", ...disabled]);
-    element.innerHTML = `<mdui-icon name="chevron_left"></mdui-icon>`;
-    element.addEventListener("click", () => {
-      if (this.options.pageIndex > 1) {
-        this.handleChangePage(this.options.pageIndex - 1);
-      }
-    });
-    return element;
+    return this.iconButton("chevron_left", "上一页", this.options.pageIndex - 1, this.options.pageIndex <= 1);
+  }
+
+  next() {
+    return this.iconButton("chevron_right", "下一页", this.options.pageIndex + 1, this.options.pageIndex >= this.pageNum);
+  }
+
+  last() {
+    return this.iconButton("last_page", "末页", this.pageNum, this.options.pageIndex >= this.pageNum);
   }
 
   /**
-   * 创建页码按钮
-   * @returns {Array<HTMLElement>} 页码按钮元素数组
+   * @returns {Array<HTMLElement>}
    */
   pager() {
-    const { min, max } = this.getBetween();
-    const arrs = this.generateArray(min, max);
-
-    let ret = [];
-    arrs.forEach((v) => {
-      let element = this.createElement("span", "page-item");
+    return this.pageItems().map((v) => {
+      if (v === "…") {
+        const gap = this.createElement("span", "pg-ellipsis");
+        gap.textContent = "…";
+        return gap;
+      }
+      const btn = this.createElement("button", "pg-btn");
+      btn.type = "button";
+      btn.textContent = v;
+      btn.setAttribute("aria-label", `第 ${v} 页`);
       if (v === this.options.pageIndex) {
-        element.classList.add("page-curr");
+        btn.setAttribute("aria-current", "page");
+      } else {
+        btn.addEventListener("click", () => this.handleChangePage(v));
       }
-
-      element.innerText = v;
-
-      if (v !== this.options.pageIndex) {
-        element.addEventListener("click", () => {
-          if (v !== this.options.pageIndex) {
-            this.handleChangePage(v);
-          }
-        });
-      }
-      ret.push(element);
+      return btn;
     });
-
-    return ret;
   }
 
   /**
-   * 创建下一页按钮
-   * @returns {HTMLElement} 下一页按钮元素
+   * @returns {Array<number|string>}
    */
-  next() {
-    const disabled = this.options.pageIndex >= this.pageNum ? ["disabled"] : [];
-    const element = this.createElement("span", ["page-item", ...disabled]);
-    element.innerHTML = `<mdui-icon name="chevron_right"></mdui-icon>`;
-    element.addEventListener("click", () => {
-      if (this.options.pageIndex < this.pageNum) {
-        this.handleChangePage(this.options.pageIndex + 1);
-      }
-    });
-    return element;
+  pageItems() {
+    const total = this.pageNum;
+    const count = this.effectivePageCount();
+    if (total <= count + 2) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const half = Math.floor(count / 2);
+    let start = Math.max(2, this.options.pageIndex - half);
+    let end = Math.min(total - 1, start + count - 1);
+    start = Math.max(2, end - count + 1);
+
+    const items = [1];
+    if (start > 2) items.push("…");
+    for (let i = start; i <= end; i++) items.push(i);
+    if (end < total - 1) items.push("…");
+    items.push(total);
+    return items;
   }
 
   /**
-   * 创建末页按钮
-   * @returns {HTMLElement} 末页按钮元素
+   * @returns {HTMLElement|null}
    */
-  last() {
-    const disabled = this.options.pageIndex >= this.pageNum ? ["disabled"] : [];
-    const element = this.createElement("span", ["page-item", ...disabled]);
-    element.innerHTML = `<mdui-icon name="keyboard_double_arrow_right"></mdui-icon>`;
-    element.addEventListener("click", () => {
-      if (this.options.pageIndex < this.pageNum) {
-        this.handleChangePage(this.pageNum);
-      }
+  jumper() {
+    if (this.pageNum <= this.effectivePageCount() + 2) return null;
+    const label = this.createElement("label", "pg-jump");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = 1;
+    input.max = this.pageNum;
+    input.setAttribute("aria-label", "跳转到页");
+    const go = () => {
+      const target = Math.min(Math.max(1, parseInt(input.value) || 1), this.pageNum);
+      input.value = "";
+      if (target !== this.options.pageIndex) this.handleChangePage(target);
+    };
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") go();
     });
-    return element;
+    input.addEventListener("blur", () => {
+      if (input.value !== "") go();
+    });
+    label.append("跳至", input, "页");
+    return label;
   }
 
-  /**
-   * 创建总条数显示元素
-   * @returns {HTMLElement} 总条数显示元素
-   */
   count() {
-    const span = this.createElement("span", "page-count");
-    span.innerText = `共 ${this.options.total} 条`;
+    const span = this.createElement("span", "pg-count");
+    span.textContent = `共 ${this.options.total} 条`;
     return span;
   }
 
-  /**
-   * 创建每页条数选择器
-   * @returns {HTMLElement} 每页条数选择器元素
-   */
   limits() {
-    const span = this.createElement("mdui-dropdown", "page-limits");
+    const dropdown = this.createElement("mdui-dropdown", "pg-limits");
+    dropdown.setAttribute("placement", "top-start");
+
     const button = this.createElement("mdui-button");
     button.setAttribute("slot", "trigger");
     button.setAttribute("variant", "text");
-    button.innerText = `${this.options.pageSize} 条/页`;
-    span.appendChild(button);
+    button.setAttribute("end-icon", "expand_more");
+    button.textContent = `${this.options.pageSize} 条/页`;
+    dropdown.appendChild(button);
 
-    const select = this.createElement("mdui-menu", "");
-    select.setAttribute("selects", "single");
-    select.setAttribute("value", `${this.options.pageSizes[0]}`);
+    const menu = this.createElement("mdui-menu");
+    menu.setAttribute("selects", "single");
+    menu.setAttribute("value", `${this.options.pageSize}`);
     this.options.pageSizes.forEach((size) => {
-      const option = this.createElement("mdui-menu-item", "");
-      option.value = size;
-      option.innerText = `${size} 条/页`;
-      select.appendChild(option);
+      const option = this.createElement("mdui-menu-item");
+      option.value = `${size}`;
+      option.textContent = `${size} 条/页`;
+      menu.appendChild(option);
     });
-
-    select.addEventListener("change", (event) => {
-      this.options.pageSize = parseInt(event.target.value);
+    menu.addEventListener("change", (event) => {
+      const size = parseInt(event.target.value);
+      if (!size || size === this.options.pageSize) return;
+      this.options.pageSize = size;
       this.handleChangePage(1);
     });
 
-    span.appendChild(select);
-    return span;
+    dropdown.appendChild(menu);
+    return dropdown;
   }
 
   /**
-   * 处理页码改变事件
-   * @param {number} index - 新的页码
+   * @param {number} index
    */
   handleChangePage(index) {
     this.options.pageIndex = index;
@@ -352,59 +398,17 @@ const that = this;
   }
 
   /**
-   * 计算页码显示范围
-   * @returns {Object} 包含min和max的对象
+   * @param {string} tag
+   * @param {string=} className
+   * @returns {HTMLElement}
    */
-  getBetween() {
-    const half = Math.floor(this.options.pageCount / 2);
-    let min = this.options.pageIndex - half;
-    let max = this.options.pageIndex + half;
-
-    if (min < 1) {
-      min = 1;
-      max = Math.min(this.pageNum, this.options.pageCount);
-    }
-
-    if (max > this.pageNum) {
-      max = this.pageNum;
-      min = Math.max(1, this.pageNum - this.options.pageCount + 1);
-    }
-
-    return { min, max };
-  }
-
-  /**
-   * 生成指定范围的数组
-   * @param {number} start - 起始值
-   * @param {number} end - 结束值
-   * @returns {Array<number>} 数字数组
-   */
-  generateArray(start, end) {
-    const arr = [];
-    for (let i = start; i <= end; i++) {
-      arr.push(i);
-    }
-    return arr;
-  }
-
-  /**
-   * 创建DOM元素
-   * @param {string} tag - 标签名
-   * @param {string|Array<string>} classList - CSS类名或类名数组
-   * @returns {HTMLElement} 创建的DOM元素
-   */
-  createElement(tag, classList) {
+  createElement(tag, className) {
     const el = document.createElement(tag);
-    if (Array.isArray(classList)) {
-      classList.forEach((cls) => el.classList.add(cls));
-    } else if (classList) {
-      el.classList.add(classList);
-    }
+    if (className) el.className = className;
     return el;
   }
 }
 
-/**
- * 注册自定义元素
- */
-customElements.define("mdui-page-btn", Pagination);
+if (!customElements.get("mdui-page-btn")) {
+  customElements.define("mdui-page-btn", Pagination);
+}
