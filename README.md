@@ -148,3 +148,9 @@ window.pageOnLoad = function () {
 { "data": [...], "count": 100 }
 ```
 
+## 许可证
+
+Copyright (C) 2025 Ankio \<ankio@ankio.net\>
+
+本项目以 [GNU General Public License v3.0](./LICENSE)（GPL-3.0）开源。
+
