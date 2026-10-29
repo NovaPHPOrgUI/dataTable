@@ -23,6 +23,21 @@ const DT_AUTO_MIN_WIDTH = 120;
  */
 const DT_CELL_PAD_X = 32;
 
+/**
+ * 解析列宽为像素数字。兼容 160 / "160" / "160px" / "auto"。
+ * @param {number|string|null|undefined} w
+ * @returns {number|null} null = 弹性列（吃剩余宽度）
+ */
+function parseColumnWidth(w) {
+  if (w == null || w === "" || w === "auto") return null;
+  if (typeof w === "number" && Number.isFinite(w) && w > 0) return w;
+  if (typeof w === "string") {
+    const m = w.trim().match(/^(\d+(?:\.\d+)?)\s*(px)?$/i);
+    if (m) return parseFloat(m[1]);
+  }
+  return null;
+}
+
 class DataTable {
   /**
    * @param {string} id - 表格容器的CSS选择器
@@ -307,7 +322,7 @@ class DataTable {
     const middle = [];
     const right = [];
     for (const col of this.config.columns) {
-      let width = col.width === "auto" ? null : col.width || null;
+      let width = parseColumnWidth(col.width);
       if (col.fixed && width === null) width = 100;
       const column = Object.assign({}, col, { width, offset: 0 });
       if (col.fixed === "left") left.push(column);
@@ -316,7 +331,7 @@ class DataTable {
     }
 
     // sticky 偏移用「内容宽 + 水平 padding」；选择列本身是 border-box 总宽
-    const outer = (w) => (w || DT_AUTO_MIN_WIDTH) + DT_CELL_PAD_X;
+    const outer = (w) => (w == null ? DT_AUTO_MIN_WIDTH : w) + DT_CELL_PAD_X;
 
     let offset = this.config.selectable ? DT_CHECK_WIDTH : 0;
     for (const col of left) {
@@ -347,7 +362,8 @@ class DataTable {
   applyColumnStyle(cell, col) {
     cell.dataset.field = col.field;
     if (col.align) cell.style.textAlign = col.align;
-    if (col.width) {
+    // width 为数字才锁列宽；null（auto）不设，留给 table-layout:fixed 吃剩余空间
+    if (col.width != null) {
       cell.style.width = col.width + "px";
       cell.style.minWidth = col.width + "px";
     }
