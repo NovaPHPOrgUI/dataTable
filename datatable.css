@@ -121,6 +121,42 @@
     color: rgb(var(--mdui-color-on-surface));
 }
 
+.dt-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 10px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.dt-resize-handle::after {
+    content: "";
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    right: 4px;
+    width: 1px;
+    background: rgb(var(--mdui-color-outline-variant));
+}
+
+.dt-resize-handle:hover::after,
+.dt-resize-handle:focus-visible::after {
+    background: rgb(var(--mdui-color-primary));
+}
+
+.dt-resize-handle:focus-visible {
+    outline: 2px solid rgb(var(--mdui-color-primary));
+    outline-offset: -2px;
+}
+
+.dt-resizing,
+.dt-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
 .dt-sort-icon {
     font-size: 1.125rem;
     vertical-align: -0.3rem;
@@ -217,7 +253,7 @@
 
     .table-mobile .dt-table {
         display: block;
-        width: 100%;
+        width: 100% !important;
         min-width: 0 !important;
     }
 
@@ -252,6 +288,7 @@
         justify-content: space-between;
         gap: 0.75rem;
         width: auto !important;
+        min-width: 0 !important;
         min-height: 2.75rem;
         padding: 0.625rem 1rem;
         border: none;

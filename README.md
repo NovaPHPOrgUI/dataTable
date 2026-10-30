@@ -51,7 +51,17 @@ window.pageOnLoad = function () {
 | `sortable` | `boolean` | 是否可排序 |
 | `width` | `number\|'auto'` | 列宽，默认 `'auto'` |
 | `fixed` | `string` | 固定列：`'left'` / `'right'`，不传则不固定 |
+| `resizable` | `boolean` | 是否允许调整该列宽度，默认 `true` |
 | `formatter` | `function(value, row, index): string` | 自定义渲染，返回 HTML 字符串 |
+
+## 调整列宽
+
+默认可拖拽表头右侧边缘调整列宽；聚焦调整手柄后，也可使用左右方向键每次调整 10px。
+最小内容宽度为 40px（包含左右内边距时为 72px）。仅列之间显示调整手柄，最右侧外边界和选择框列不参与调整，固定列偏移自动更新。
+调整结果在当前表格实例的排序、分页和数据刷新后保留，重新进入页面时恢复配置宽度。
+移动端卡片布局不显示表头和调整手柄。
+
+通过表格配置 `resizable: false` 关闭全部列的调整，或在单个列配置中设置 `resizable: false`。
 
 ## Formatter 写法
 
@@ -153,4 +163,3 @@ window.pageOnLoad = function () {
 Copyright (C) 2025 Ankio \<ankio@ankio.net\>
 
 本项目以 [GNU General Public License v3.0](./LICENSE)（GPL-3.0）开源。
-

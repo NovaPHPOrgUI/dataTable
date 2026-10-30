@@ -22,6 +22,7 @@ const DT_AUTO_MIN_WIDTH = 120;
  * 必须与 datatable.css 里 --dt-cell-pad-x（左右各 1rem）一致
  */
 const DT_CELL_PAD_X = 32;
+const DT_MIN_COLUMN_WIDTH = 40;
 
 /**
  * 解析列宽为像素数字。兼容 160 / "160" / "160px" / "auto"。
@@ -146,6 +147,7 @@ class DataTable {
    * @property {number|string}  width 列宽，数字或 'auto'
    * @property {string=} fixed      固定列：'left' | 'right'
    * @property {boolean=} sortable  是否可排序
+   * @property {boolean=} resizable 是否允许拖拽调整列宽，默认 true
    * @property {(value:any, row?:any, index?:number)=>string} [formatter]
    *   可选：自定义单元格渲染函数，返回渲染后字符串
    */
@@ -166,6 +168,7 @@ class DataTable {
    * @property {Object=}  headers                 [可选] 请求头
    * @property {number[]=} pageSizes              [可选] 分页大小选项
    * @property {boolean=} page                    [可选] 是否启用分页
+   * @property {boolean=} resizable               [可选] 是否允许调整列宽，默认 true
    */
 
   /**
@@ -196,6 +199,7 @@ class DataTable {
             headers: {},
             pageSizes: [5, 10, 20, 50, 100],
             page: true,
+            resizable: true,
           },
           config,
         );
@@ -330,28 +334,99 @@ class DataTable {
       else middle.push(column);
     }
 
+    const columns = [...left, ...middle, ...right];
+    this.updateColumnLayout(columns);
+    return columns;
+  }
+
+  updateColumnLayout(columns) {
     // sticky 偏移用「内容宽 + 水平 padding」；选择列本身是 border-box 总宽
     const outer = (w) => (w == null ? DT_AUTO_MIN_WIDTH : w) + DT_CELL_PAD_X;
 
     let offset = this.config.selectable ? DT_CHECK_WIDTH : 0;
-    for (const col of left) {
+    for (const col of columns.filter((col) => col.fixed === "left")) {
       col.offset = offset;
       offset += outer(col.width);
     }
     offset = 0;
-    for (let i = right.length - 1; i >= 0; i--) {
-      right[i].offset = offset;
-      offset += outer(right[i].width);
+    for (const col of columns.filter((col) => col.fixed === "right").reverse()) {
+      col.offset = offset;
+      offset += outer(col.width);
     }
 
-    const columns = [...left, ...middle, ...right];
     // min-width = 实际渲染总宽，避免 content-box 漏算 padding 撑出页面横条
     const minWidth = columns.reduce(
       (sum, c) => sum + outer(c.width),
       this.config.selectable ? DT_CHECK_WIDTH : 0,
     );
     this.table.style.setProperty("--dt-min-width", minWidth + "px");
-    return columns;
+    if (this._manualColumnWidths) this.table.style.width = minWidth + "px";
+  }
+
+  lockColumnWidths() {
+    const cells = this.table.tHead.rows[0].cells;
+    const offset = this.config.selectable ? 1 : 0;
+    const widths = this.columns.map((_, index) =>
+      Math.max(1, cells[index + offset].getBoundingClientRect().width - DT_CELL_PAD_X),
+    );
+    this.columns.forEach((col, index) => { col.width = widths[index]; });
+    this._manualColumnWidths = true;
+  }
+
+  resizeColumn(index, width) {
+    this.columns[index].width = Math.max(DT_MIN_COLUMN_WIDTH, width);
+    this.updateColumnLayout(this.columns);
+    const offset = this.config.selectable ? 1 : 0;
+    for (const row of this.table.rows) {
+      if (row.classList.contains("dt-empty")) continue;
+      this.columns.forEach((col, colIndex) => {
+        const cell = row.cells[colIndex + offset];
+        this.applyColumnStyle(cell, col);
+        const handle = cell.querySelector(".dt-resize-handle");
+        if (handle) handle.setAttribute("aria-valuenow", String(Math.round(col.width + DT_CELL_PAD_X)));
+      });
+    }
+  }
+
+  startColumnResize(event, index, handle) {
+    if (event.button !== 0 || event.isPrimary === false) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.endColumnResize();
+    this.lockColumnWidths();
+    this.resizeColumn(index, this.columns[index].width);
+    const state = {
+      handle, pointerId: event.pointerId, startX: event.clientX,
+      width: this.columns[index].width,
+    };
+    state.move = (e) => {
+      if (e.pointerId !== state.pointerId) return;
+      this.resizeColumn(index, state.width + e.clientX - state.startX);
+    };
+    state.end = (e) => {
+      if (e.pointerId === state.pointerId) this.endColumnResize();
+    };
+    this._columnResize = state;
+    handle.addEventListener("pointermove", state.move);
+    handle.addEventListener("pointerup", state.end);
+    handle.addEventListener("pointercancel", state.end);
+    handle.addEventListener("lostpointercapture", state.end);
+    handle.setPointerCapture(event.pointerId);
+    this.element.classList.add("dt-resizing");
+  }
+
+  endColumnResize() {
+    const state = this._columnResize;
+    if (!state) return;
+    this._columnResize = null;
+    state.handle.removeEventListener("pointermove", state.move);
+    state.handle.removeEventListener("pointerup", state.end);
+    state.handle.removeEventListener("pointercancel", state.end);
+    state.handle.removeEventListener("lostpointercapture", state.end);
+    if (state.handle.hasPointerCapture(state.pointerId)) {
+      state.handle.releasePointerCapture(state.pointerId);
+    }
+    this.element.classList.remove("dt-resizing");
   }
 
   /**
@@ -377,6 +452,7 @@ class DataTable {
    * 渲染表头
    */
   renderHead() {
+    this.endColumnResize();
     const tr = document.createElement("tr");
     if (this.config.selectable) {
       const th = document.createElement("th");
@@ -385,7 +461,7 @@ class DataTable {
       th.innerHTML = '<mdui-checkbox class="dt-check-all"></mdui-checkbox>';
       tr.appendChild(th);
     }
-    for (const col of this.columns) {
+    for (const [index, col] of this.columns.entries()) {
       const th = document.createElement("th");
       this.applyColumnStyle(th, col);
       const label = document.createElement("span");
@@ -399,11 +475,35 @@ class DataTable {
         icon.setAttribute("name", "unfold_more");
         th.appendChild(icon);
       }
+      if (this.config.resizable && col.resizable !== false && index < this.columns.length - 1) {
+        const handle = document.createElement("span");
+        handle.className = "dt-resize-handle";
+        handle.tabIndex = 0;
+        handle.title = "拖拽调整列宽";
+        handle.setAttribute("role", "separator");
+        handle.setAttribute("aria-orientation", "vertical");
+        handle.setAttribute("aria-label", "调整" + col.name + "列宽");
+        handle.setAttribute("aria-valuemin", String(DT_MIN_COLUMN_WIDTH + DT_CELL_PAD_X));
+        handle.addEventListener("pointerdown", (e) => this.startColumnResize(e, index, handle));
+        handle.addEventListener("click", (e) => e.stopPropagation());
+        handle.addEventListener("keydown", (e) => {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+          e.preventDefault();
+          e.stopPropagation();
+          this.lockColumnWidths();
+          this.resizeColumn(index, this.columns[index].width + (e.key === "ArrowRight" ? 10 : -10));
+        });
+        th.appendChild(handle);
+      }
       tr.appendChild(th);
     }
     const thead = this.table.tHead;
     thead.innerHTML = "";
     thead.appendChild(tr);
+    for (const th of tr.cells) {
+      const handle = th.querySelector(".dt-resize-handle");
+      if (handle) handle.setAttribute("aria-valuenow", String(Math.round(th.getBoundingClientRect().width)));
+    }
     this.renderSortState();
   }
 
@@ -610,6 +710,7 @@ class DataTable {
    * 销毁表格实例
    */
   destroy() {
+    this.endColumnResize();
     clearTimeout(this._hScrollTimer);
     this.wrap.removeEventListener("mousemove", this._onWrapMouseMove);
     this.wrap.removeEventListener("mouseleave", this._onWrapMouseLeave);
