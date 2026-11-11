@@ -220,6 +220,10 @@ class DataTable {
           that.table.style.setProperty("--dt-row-height", DataTable.cssSize(that.config.lineHeight));
         }
 
+        if (that.config.sortColumn) {
+          that.sortColumn = that.config.sortColumn;
+          that.sortOrder = that.config.sortOrder || "asc";
+        }
         that.columns = that.buildColumns();
         that.renderHead();
         that.reload();
