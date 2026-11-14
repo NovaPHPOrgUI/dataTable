@@ -145,14 +145,15 @@ class CardView {
       $.url.setParam("page", "1");
     }
     this.setSelected([], true);
-    const loading = new Loading(this.element);
-    loading.show();
+    // 首屏跟 PJAX 进度条，避免切页后再盖一层 Loading
+    const loading = this._hasLoaded ? new Loading(this.element) : null;
+    loading?.show();
     this.fetchData(() => {
       const lastPage = Math.max(1, Math.ceil(this.totalRecords / this.pageSize));
       if (this.data.length === 0 && this.currentPage > lastPage) {
         this.currentPage = lastPage;
         $.url.setParam("page", String(lastPage));
-        loading.close();
+        loading?.close();
         this.reload();
         return;
       }
@@ -162,7 +163,8 @@ class CardView {
       } catch (e) {
         $.logger.error(e);
       }
-      loading.close();
+      this._hasLoaded = true;
+      loading?.close();
     });
   }
 

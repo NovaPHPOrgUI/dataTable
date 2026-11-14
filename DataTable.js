@@ -253,15 +253,16 @@ class DataTable {
       $.url.setParam("page", "1");
     }
     this.setSelected([], true);
-    const loading = new Loading(this.element);
-    loading.show();
+    // 首屏跟随 PJAX/NProgress，不再盖一层 Loading，否则侧栏切到列表页会「闪第二次」
+    const loading = this._hasLoaded ? new Loading(this.element) : null;
+    loading?.show();
     this.fetchData(() => {
       // 当前页已无数据但总数不为零（如删掉了末页最后一条）：退回最后一页
       const lastPage = Math.max(1, Math.ceil(this.totalRecords / this.pageSize));
       if (this.data.length === 0 && this.currentPage > lastPage) {
         this.currentPage = lastPage;
         $.url.setParam("page", String(lastPage));
-        loading.close();
+        loading?.close();
         this.reload();
         return;
       }
@@ -271,7 +272,8 @@ class DataTable {
       } catch (e) {
         $.logger.error(e);
       }
-      loading.close();
+      this._hasLoaded = true;
+      loading?.close();
     });
   }
 
