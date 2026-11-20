@@ -125,13 +125,34 @@ function ensurePaginationStyle() {
         justify-content: center;
         width: 100%;
       }
-      mdui-page-btn .pg-jump { display: none; }
       mdui-page-btn .pg-btn {
         min-width: 2.5rem;
         height: 2.5rem;
       }
       mdui-page-btn .pg-count { font-size: 0.8125rem; }
     }
+    mdui-page-btn .pg-jump mdui-button-icon { width: 2rem; height: 2rem; }
+    mdui-page-btn .pg.pg-compact {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0.125rem;
+      margin-top: 0.25rem;
+      padding: 0;
+      font-size: 0.8125rem;
+    }
+    mdui-page-btn .pg-compact .pg-nav {
+      flex-wrap: nowrap;
+      width: auto;
+      gap: 0;
+    }
+    mdui-page-btn .pg-compact .pg-info { flex-wrap: nowrap; width: auto; gap: 0; }
+    mdui-page-btn .pg-compact .pg-icon { width: 2rem; height: 2rem; }
+    mdui-page-btn .pg-compact .pg-limits mdui-button { min-width: 0; padding: 0 0.375rem; }
+    mdui-page-btn .pg-compact .pg-jump { margin-left: 0; gap: 0.125rem; }
+    mdui-page-btn .pg-compact .pg-jump input { width: 2.5rem; height: 1.75rem; padding: 0 0.125rem; }
+    mdui-page-btn .pg-compact .pg-total { padding: 0 0.125rem; white-space: nowrap; }
   `;
   document.head.appendChild(style);
 }
@@ -179,6 +200,10 @@ class Pagination extends HTMLElement {
    * 窄屏压缩页码窗口
    * @returns {number}
    */
+  isCompact() {
+    return !!(this.options && (this.options.compact === true || (this.options.compact !== false && this._compactMq && this._compactMq.matches)));
+  }
+
   effectivePageCount() {
     const base = Math.max(3, this.options.pageCount || 5);
     return this._compactMq && this._compactMq.matches ? Math.min(base, 3) : base;
@@ -195,6 +220,7 @@ class Pagination extends HTMLElement {
    * @param {string} options.layout - 布局：first, prev, pager, next, last, jumper
    * @param {boolean} options.showCount - 是否显示总条数
    * @param {boolean} options.showLimits - 是否显示每页条数选择器
+   * @param {boolean|string} options.compact - 极简视图：true 强制，false 关闭，"auto" 小屏自动
    * @param {Function} options.onPageChange - 页码改变回调 (index, pageSize)
    */
   init(options) {
@@ -209,6 +235,7 @@ class Pagination extends HTMLElement {
         layout: "prev, pager, next, jumper",
         showCount: true,
         showLimits: true,
+        compact: "auto",
         onPageChange: function (index, pageSize) {},
       },
       options,
@@ -224,6 +251,12 @@ class Pagination extends HTMLElement {
     this.options.pageIndex = Math.min(Math.max(1, this.options.pageIndex), this.pageNum);
 
     this.element.innerHTML = "";
+
+    if (this.isCompact()) {
+      this.renderCompact();
+      return;
+    }
+    this.element.classList.remove("pg-compact");
 
     if (this.options.showCount || this.options.showLimits) {
       const info = this.createElement("div", "pg-info");
@@ -244,6 +277,23 @@ class Pagination extends HTMLElement {
       }
     });
     this.element.appendChild(nav);
+  }
+
+  /** 极简视图：上一页 [页码]/总页数 下一页 + 每页条数，单行紧凑排列 */
+  renderCompact() {
+    this.element.classList.add("pg-compact");
+    const nav = this.createElement("div", "pg-nav");
+    nav.append(
+      this.prev(),
+      this.jumper(true),
+      this.next(),
+    );
+    this.element.appendChild(nav);
+    if (this.options.showLimits) {
+      const info = this.createElement("div", "pg-info");
+      info.appendChild(this.limits());
+      this.element.appendChild(info);
+    }
   }
 
   /**
@@ -326,26 +376,49 @@ class Pagination extends HTMLElement {
   /**
    * @returns {HTMLElement|null}
    */
-  jumper() {
-    if (this.pageNum <= this.effectivePageCount() + 2) return null;
+  jumper(always) {
+    if (!always && this.pageNum <= this.effectivePageCount() + 2) return null;
     const label = this.createElement("label", "pg-jump");
     const input = document.createElement("input");
     input.type = "number";
     input.min = 1;
     input.max = this.pageNum;
+    input.value = always ? this.options.pageIndex : "";
     input.setAttribute("aria-label", "跳转到页");
+    input.setAttribute("inputmode", "numeric");
     const go = () => {
+      if (input.value === "") return;
       const target = Math.min(Math.max(1, parseInt(input.value) || 1), this.pageNum);
-      input.value = "";
-      if (target !== this.options.pageIndex) this.handleChangePage(target);
+      if (target !== this.options.pageIndex) {
+        this.handleChangePage(target);
+      } else {
+        input.value = always ? target : "";
+      }
     };
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") go();
+      if (e.key === "Enter" && !e.isComposing) {
+        e.preventDefault();
+        e.stopPropagation();
+        go();
+      }
     });
-    input.addEventListener("blur", () => {
-      if (input.value !== "") go();
-    });
-    label.append("跳至", input, "页");
+    const btn = this.createElement("mdui-button-icon");
+    btn.setAttribute("icon", "keyboard_return");
+    btn.setAttribute("aria-label", "跳转");
+    btn.addEventListener("click", go);
+    if (always) {
+      const total = this.createElement("span", "pg-total");
+      total.textContent = `/ ${this.pageNum}`;
+      label.append(input, total, btn);
+    } else {
+      // 文字必须包在 span 里：框架翻译会把“带直接文本的元素”整体重建，
+      // 输入框和按钮会因此丢失事件监听
+      const pre = this.createElement("span");
+      pre.textContent = "跳至";
+      const post = this.createElement("span");
+      post.textContent = "页";
+      label.append(pre, input, post, btn);
+    }
     return label;
   }
 

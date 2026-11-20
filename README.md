@@ -27,6 +27,7 @@ window.pageOnLoad = function () {
         height: 'auto',             // 表格高度（必填）
         break: true,                // 是否允许换行（可选，默认 false）
         page: true,                 // 是否分页（可选，默认 true）
+        compact: 'auto',            // 分页极简视图：true/false/'auto'（小屏自动，默认）
         pageSizes: [5, 10, 20, 50, 100], // 分页大小选项（可选）
         empty_msg: '空空如也',       // 空数据提示（可选）
         params: {},                 // 额外请求参数（可选，支持对象或表单选择器如 '#searchForm'）

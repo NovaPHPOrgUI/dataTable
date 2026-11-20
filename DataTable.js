@@ -157,6 +157,7 @@ class DataTable {
    * @typedef {Object} TableOptions
    * @property {string}   uri                     数据接口地址（必填）
    * @property {Column[]} columns                 列配置数组（必填）
+   * @property {boolean|string} [compact]        分页极简视图：true 强制，false 关闭，"auto"(默认) 小屏自动
    * @property {boolean}  mobile                  是否启用移动端适配（必填）
    * @property {boolean}  selectable              是否可选择行（必填）
    * @property {string}   lineHeight              行高（必填）
@@ -199,6 +200,7 @@ class DataTable {
             headers: {},
             pageSizes: [5, 10, 20, 50, 100],
             page: true,
+            compact: "auto",
             resizable: true,
           },
           config,
@@ -607,6 +609,7 @@ class DataTable {
       pageSizes: that.config.pageSizes,
       pageSize: that.pageSize,
       total: that.totalRecords,
+      compact: that.config.compact,
       onPageChange: function (index, pageSize) {
         that.currentPage = index;
         that.pageSize = pageSize;
